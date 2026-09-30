@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Takvim</title>
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Takvim">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#08080a">
+<link rel="apple-touch-icon" id="appleTouchIcon">
+<link rel="icon" id="faviconIcon">
+<link rel="manifest" id="manifestLink">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<style>
+  :root{
+    --bg:#08080a;
+    --card: rgba(255,255,255,0.045);
+    --card-strong: rgba(255,255,255,0.075);
+    --card-border: rgba(255,255,255,0.09);
+    --accent:#e0101f;
+    --accent-2:#ff4650;
+    --accent-deep:#6e0812;
+    --text:#f4f3f0;
+    --text-dim:#9a99a2;
+    --text-dimmer:#6c6b75;
+    --gold:#c9a24b;
+  }
+  *{ -webkit-tap-highlight-color: transparent; box-sizing:border-box; }
+  html,body{
+    background:var(--bg); color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    overscroll-behavior:none; -webkit-font-smoothing:antialiased;
+  }
+  body{
+    min-height:100dvh;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(224,16,31,0.16), transparent 42%),
+      radial-gradient(circle at 100% 30%, rgba(201,162,75,0.07), transparent 45%),
+      var(--bg);
+  }
+  .serif{ font-family:'Playfair Display', serif; }
+  ::selection{ background:var(--accent); color:#fff; }
+  ::-webkit-scrollbar{ width:0; height:0; }
+
+  .glass{ background:var(--card); border:1px solid var(--card-border); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); }
+  .glass-strong{ background:var(--card-strong); border:1px solid var(--card-border); backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px); }
+
+  .press{ transition: transform .15s cubic-bezier(.34,1.56,.64,1), opacity .15s ease; }
+  .press:active{ transform: scale(.94); opacity:.85; }
+  .tab-btn{ transition: color .25s ease, transform .15s ease; }
+  .tab-btn:active{ transform: scale(.92); }
+
+  /* ---- AÇILIŞ ANİMASYONU ---- */
+  #splash{
+    position:fixed; inset:0; z-index:300; display:flex; align-items:center; justify-content:center;
+    background:var(--bg);
+    transition: opacity .6s ease, transform .6s cubic-bezier(.19,1,.22,1);
+  }
+  #splash.gone{ opacity:0; transform:scale(1.06); pointer-events:none; }
+  .splash-card{
+    width:104px; height:104px; border-radius:26px; background:#fff; position:relative; overflow:hidden;
+    box-shadow:0 30px 70px -20px rgba(224,16,31,0.55);
+    animation: splashPop .85s cubic-bezier(.19,1,.22,1) both;
+  }
+  .splash-card .top{ height:28px; background:var(--accent); display:flex; align-items:center; justify-content:center; }
+  .splash-card .top span{ font-size:11px; font-weight:700; letter-spacing:1px; color:#fff; }
+  .splash-card .num{ display:flex; align-items:center; justify-content:center; height:76px; font-size:46px; font-weight:600; color:#111; }
+  @keyframes splashPop{
+    0%{ opacity:0; transform: scale(.7) rotate(-6deg); }
+    60%{ opacity:1; transform: scale(1.04) rotate(1deg); }
+    100%{ opacity:1; transform: scale(1) rotate(0); }
+  }
+  .splash-ring{
+    position:absolute; width:104px; height:104px; border-radius:26px;
+    border:1.5px solid rgba(224,16,31,.5);
+    animation: ringOut 1.6s cubic-bezier(.19,1,.22,1) infinite;
+  }
+  @keyframes ringOut{
+    0%{ transform:scale(1); opacity:.7; }
+    100%{ transform:scale(1.9); opacity:0; }
+  }
+
+  @keyframes heroIn{ from{opacity:0; transform:translateY(14px) scale(.985);} to{opacity:1; transform:translateY(0) scale(1);} }
+  .hero-in{ animation: heroIn .55s cubic-bezier(.19,1,.22,1) both; }
+  @keyframes fadeUp{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+  .fade-up{ animation: fadeUp .4s ease both; }
+  .stagger > *{ animation: fadeUp .45s ease both; }
+  .stagger > *:nth-child(1){ animation-delay:.02s }
+  .stagger > *:nth-child(2){ animation-delay:.06s }
+  .stagger > *:nth-child(3){ animation-delay:.10s }
+  .stagger > *:nth-child(4){ animation-delay:.14s }
+  .stagger > *:nth-child(5){ animation-delay:.18s }
+  .stagger > *:nth-child(6){ animation-delay:.22s }
+  .stagger > *:nth-child(7){ animation-delay:.26s }
+  .stagger > *:nth-child(8){ animation-delay:.30s }
+
+  .pulse-dot{ box-shadow:0 0 0 0 rgba(224,16,31,.6); animation:pulseDot 2.2s infinite; }
+  @keyframes pulseDot{
+    0%{ box-shadow:0 0 0 0 rgba(224,16,31,.55); }
+    70%{ box-shadow:0 0 0 14px rgba(224,16,31,0); }
+    100%{ box-shadow:0 0 0 0 rgba(224,16,31,0); }
+  }
+
+  .strike{ position:relative; color:var(--text-dimmer)!important; }
+  .strike::after{
+    content:''; position:absolute; left:0; right:0; top:50%; height:1px; background:var(--text-dimmer);
+    transform-origin:left; animation:strikeLine .35s ease forwards;
+  }
+  @keyframes strikeLine{ from{transform:scaleX(0);} to{transform:scaleX(1);} }
+
+  .modal-backdrop{ animation: fadeUp .2s ease both; }
+  .modal-sheet{ animation: sheetUp .32s cubic-bezier(.19,1,.22,1) both; }
+  @keyframes sheetUp{ from{opacity:0; transform:translateY(28px);} to{opacity:1; transform:translateY(0);} }
+
+  input,select,textarea{ color-scheme: dark; }
+  .fld{ width:100%; border-radius:16px; padding:14px 16px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); font-size:15px; outline:none; color:var(--text); }
+  .fld:focus{ border-color:var(--accent-2); }
+  .btn-primary{ background:linear-gradient(145deg, var(--accent-2), var(--accent-deep)); box-shadow:0 8px 24px -6px rgba(224,16,31,.5); }
+
+  .confetti-piece{ position:fixed; top:-10px; z-index:200; pointer-events:none; border-radius:1px; }
+  @keyframes confettiFall{
+    0%{ transform:translateY(0) rotate(0); opacity:1; }
+    100%{ transform:translateY(110vh) rotate(540deg); opacity:0; }
+  }
+
+  .day-chip{ transition: all .25s cubic-bezier(.19,1,.22,1); }
+
+  #syncDot{ transition: background .4s ease, opacity .4s ease; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:.001ms!important; animation-iteration-count:1!important; transition-duration:.001ms!important; }
+  }
+</style>
+</head>
+<body class="pb-28">
+
+<!-- AÇILIŞ -->
+<div id="splash">
+  <div class="relative flex items-center justify-center">
+    <div class="splash-ring"></div>
+    <div class="splash-card">
+      <div class="top"><span id="splashMonth">EYL</span></div>
+      <div class="num" id="splashDay">1</div>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="max-w-md mx-auto min-h-dvh relative px-5 pt-[calc(1.25rem+env(safe-area-inset-top))]">
+
+  <!-- ÜST BAR -->
+  <div class="flex items-center justify-between mb-5">
+    <div id="headerTapZone">
+      <p class="text-[13px] tracking-wide text-[var(--text-dim)]" id="topDate">—</p>
+      <h1 class="serif text-[22px] leading-tight font-semibold" id="topGreeting">Merhaba</h1>
+    </div>
+    <div class="flex items-center gap-2">
+      <span id="syncDot" class="w-2 h-2 rounded-full opacity-0" style="background:var(--accent-2);"></span>
+      <button id="bellBtn" class="press glass w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" aria-label="Bildirimler">
+        <svg id="bellIcon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="glass w-full rounded-2xl px-4 py-3.5 mb-6 flex items-center justify-center gap-2.5">
+    <span class="serif font-semibold leading-none" style="font-size:30px; color:var(--accent-2);" id="streakNumber">—</span>
+    <span class="text-[12px] text-[var(--text-dimmer)]" id="streakSuffix"></span>
+  </div>
+
+  <!-- ŞU AN -->
+  <section id="screen-live">
+    <div class="glass rounded-[28px] p-6 mb-5 hero-in text-center">
+      <p class="text-[12px] uppercase text-[var(--text-dimmer)] mb-1" style="letter-spacing:.1em;">şu an</p>
+      <p class="serif font-semibold leading-none" style="font-size:52px;" id="liveClock">00:00</p>
+      <p class="text-[13px] text-[var(--text-dim)] mt-2" id="liveDayLabel">—</p>
+    </div>
+
+    <div id="noteWrap" class="mb-5"></div>
+    <div id="currentTaskWrap" class="mb-5"></div>
+    <div id="nextTaskWrap" class="mb-6"></div>
+
+    <div class="flex items-center justify-between mb-3 mt-2">
+      <h2 class="serif text-[17px] font-semibold">Bugünün akışı</h2>
+      <span class="text-[12px] text-[var(--text-dimmer)]" id="todayCount"></span>
+    </div>
+    <div id="todayList" class="flex flex-col gap-2.5 stagger mb-20"></div>
+  </section>
+
+  <!-- PLANLAR -->
+  <section id="screen-plans" class="hidden">
+    <h2 class="serif text-[20px] font-semibold mb-4">Haftalık plan</h2>
+    <div id="planChips" class="flex gap-2 overflow-x-auto pb-1 mb-5" style="scrollbar-width:none;"></div>
+    <div id="planList" class="flex flex-col gap-2.5 stagger mb-24"></div>
+  </section>
+
+  <!-- DERS PROGRAMI -->
+  <section id="screen-school" class="hidden">
+    <h2 class="serif text-[20px] font-semibold mb-4">Ders programı</h2>
+    <div id="schoolChips" class="flex gap-2 overflow-x-auto pb-1 mb-5" style="scrollbar-width:none;"></div>
+    <div id="schoolList" class="flex flex-col gap-2.5 stagger mb-24"></div>
+  </section>
+
+  <!-- REGL TAKVİMİ -->
+  <section id="screen-period" class="hidden">
+    <h2 class="serif text-[20px] font-semibold mb-4">Regl takvimi</h2>
+
+    <div class="glass rounded-[24px] p-5 mb-5">
+      <div class="flex items-center justify-between mb-4">
+        <button id="pmPrev" class="press w-9 h-9 rounded-xl flex items-center justify-center bg-white/5"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+        <p class="serif text-[16px] font-semibold" id="pmLabel">—</p>
+        <button id="pmNext" class="press w-9 h-9 rounded-xl flex items-center justify-center bg-white/5"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+      </div>
+      <div class="grid grid-cols-7 gap-1.5 mb-1.5" id="pmWeekHead"></div>
+      <div class="grid grid-cols-7 gap-1.5" id="pmGrid"></div>
+      <div class="flex items-center gap-4 mt-4 pt-4 border-t border-white/10 text-[11px] text-[var(--text-dimmer)]">
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block" style="background:var(--accent-2);"></span>geçmiş</span>
+        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full inline-block border" style="border-color:var(--accent-2);"></span>tahmini</span>
+      </div>
+    </div>
+
+    <div class="glass rounded-2xl p-5 mb-5" id="pmSummary"></div>
+
+    <button id="pmToday" class="press w-full rounded-2xl py-3.5 mb-3 text-[14px] font-semibold btn-primary">Bugün başladı</button>
+
+    <div class="flex gap-2 mb-5">
+      <input id="pmDateInput" type="date" class="fld flex-1">
+      <button id="pmDateAdd" class="press rounded-2xl px-5 text-[13.5px] font-semibold bg-white/5 border border-white/10">Ekle</button>
+    </div>
+
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-[13px] font-semibold text-[var(--text-dim)]">Kayıtlar</h3>
+    </div>
+    <div id="pmList" class="flex flex-col gap-2 mb-6"></div>
+
+    <div class="glass rounded-2xl p-4 mb-24">
+      <p class="text-[12.5px] font-semibold mb-3">Tahmin ayarları</p>
+      <div class="flex gap-3">
+        <div class="flex-1">
+          <label class="text-[11px] text-[var(--text-dimmer)] mb-1 block">Döngü (gün)</label>
+          <input id="pmCycleLen" type="number" min="15" max="60" class="fld text-[13.5px]">
+        </div>
+        <div class="flex-1">
+          <label class="text-[11px] text-[var(--text-dimmer)] mb-1 block">Süre (gün)</label>
+          <input id="pmPeriodLen" type="number" min="1" max="14" class="fld text-[13.5px]">
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Ekranlarda + ekle (herkes kullanabilir) -->
+<button id="userAddBtn" class="press fixed z-40 right-5 rounded-full flex items-center justify-center shadow-2xl hidden"
+  style="width:60px;height:60px; bottom:calc(96px + env(safe-area-inset-bottom)); background:linear-gradient(145deg, var(--accent-2), var(--accent-deep)); box-shadow: 0 10px 30px -6px rgba(224,16,31,0.55);">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<!-- ALT NAV -->
+<nav class="fixed bottom-0 left-0 right-0 z-30 px-5 pb-[calc(0.9rem+env(safe-area-inset-bottom))] pt-3">
+  <div class="max-w-md mx-auto glass-strong rounded-[24px] flex items-center justify-around py-2.5 px-1">
+    <button data-tab="live" class="tab-btn press flex flex-col items-center gap-1 px-3.5 py-1.5 rounded-2xl" style="color:var(--accent-2);">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>
+      <span class="text-[10.5px] font-medium">Şu an</span>
+    </button>
+    <button data-tab="plans" class="tab-btn press flex flex-col items-center gap-1 px-3.5 py-1.5 rounded-2xl" style="color:var(--text-dim);">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="16" rx="3"/><path d="M3.5 9.5h17M8 3v3M16 3v3"/></svg>
+      <span class="text-[10.5px] font-medium">Plan</span>
+    </button>
+    <button data-tab="school" class="tab-btn press flex flex-col items-center gap-1 px-3.5 py-1.5 rounded-2xl" style="color:var(--text-dim);">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5 12 4l9 4.5-9 4.5-9-4.5Z"/><path d="M7 11v4.5c0 1 2.2 2.5 5 2.5s5-1.5 5-2.5V11"/></svg>
+      <span class="text-[10.5px] font-medium">Ders</span>
+    </button>
+    <button data-tab="period" class="tab-btn press flex flex-col items-center gap-1 px-3.5 py-1.5 rounded-2xl" style="color:var(--text-dim);">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c0 0-6.5 8-6.5 12.5a6.5 6.5 0 0 0 13 0C18.5 11 12 3 12 3Z"/></svg>
+      <span class="text-[10.5px] font-medium">Regl</span>
+    </button>
+  </div>
+</nav>
+
+
+<!-- BİLDİRİM MODAL -->
+<div id="notifModal" class="fixed inset-0 z-50 hidden">
+  <div class="modal-backdrop absolute inset-0 bg-black/60" data-close="notifModal"></div>
+  <div class="modal-sheet absolute bottom-0 left-0 right-0 glass-strong rounded-t-[32px] p-6 pb-[calc(1.75rem+env(safe-area-inset-bottom))] max-w-md mx-auto text-center">
+    <div class="w-10 h-1.5 rounded-full bg-white/15 mx-auto mb-5"></div>
+    <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center btn-primary">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </div>
+    <h3 class="serif text-[19px] font-semibold mb-2">Hatırlatmalar</h3>
+    <p class="text-[13.5px] text-[var(--text-dim)] mb-6 leading-relaxed" id="notifDesc">Görev saati geldiğinde uygulama açıkken haber verelim mi?</p>
+    <button id="notifEnableBtn" class="press w-full rounded-2xl py-4 font-semibold text-[15px] mb-3 btn-primary">İzin ver</button>
+    <button class="press w-full rounded-2xl py-4 font-semibold text-[15px] bg-white/5 border border-white/10" data-close="notifModal">Kapat</button>
+  </div>
+</div>
+
+<!-- ADMİN ŞİFRE -->
+<div id="pinModal" class="fixed inset-0 z-[60] hidden">
+  <div class="modal-backdrop absolute inset-0 bg-black/70" data-close="pinModal"></div>
+  <div class="modal-sheet absolute bottom-0 left-0 right-0 glass-strong rounded-t-[32px] p-6 pb-[calc(1.75rem+env(safe-area-inset-bottom))] max-w-md mx-auto">
+    <div class="w-10 h-1.5 rounded-full bg-white/15 mx-auto mb-5"></div>
+    <h3 class="serif text-[19px] font-semibold mb-4 text-center">Şifre</h3>
+    <input id="pinInput" type="password" inputmode="numeric" class="fld mb-4 text-center tracking-[6px]" placeholder="••••">
+    <button id="pinSubmit" class="press w-full rounded-2xl py-4 font-semibold text-[15px] btn-primary">Gir</button>
+  </div>
+</div>
+
+<!-- ADMİN PANELİ -->
+<div id="adminPanel" class="fixed inset-0 z-[70] hidden overflow-y-auto" style="background:var(--bg);">
+  <div class="max-w-md mx-auto px-5 pt-[calc(1.25rem+env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))]">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="serif text-[22px] font-semibold">Yönetim</h2>
+      <button id="adminClose" class="press glass w-11 h-11 rounded-2xl flex items-center justify-center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- admin sekmeleri -->
+    <div class="flex gap-2 mb-6">
+      <button data-atab="plans" class="atab press flex-1 rounded-2xl py-3 text-[13.5px] font-medium btn-primary">Plan</button>
+      <button data-atab="school" class="atab press flex-1 rounded-2xl py-3 text-[13.5px] font-medium glass">Ders</button>
+      <button data-atab="extra" class="atab press flex-1 rounded-2xl py-3 text-[13.5px] font-medium glass">Diğer</button>
+    </div>
+
+    <!-- PLAN YÖNETİMİ -->
+    <div id="atab-plans">
+      <div id="adminPlanChips" class="flex gap-2 overflow-x-auto pb-1 mb-4" style="scrollbar-width:none;"></div>
+      <button id="adminAddPlan" class="press w-full rounded-2xl py-3.5 mb-4 text-[14px] font-semibold btn-primary">+ Plan ekle</button>
+      <div id="adminPlanList" class="flex flex-col gap-2.5 mb-6"></div>
+
+      <div class="glass rounded-2xl p-4 mb-8">
+        <p class="text-[13px] font-semibold mb-1.5">Toplu ekle</p>
+        <p class="text-[11.5px] text-[var(--text-dimmer)] mb-3 leading-relaxed">Her satır: <b>Gün | 09:00-10:30 | Başlık</b><br>Örn: Pazartesi | 14:00-15:30 | Arda ile buluş</p>
+        <textarea id="bulkPlan" rows="5" class="fld mb-3 text-[13px]" placeholder="Pazartesi | 14:00-15:30 | Arda ile buluş"></textarea>
+        <button id="bulkPlanBtn" class="press w-full rounded-2xl py-3 text-[13.5px] font-semibold bg-white/5 border border-white/10">Hepsini ekle</button>
+      </div>
+    </div>
+
+    <!-- DERS YÖNETİMİ -->
+    <div id="atab-school" class="hidden">
+      <div id="adminSchoolChips" class="flex gap-2 overflow-x-auto pb-1 mb-4" style="scrollbar-width:none;"></div>
+      <button id="adminAddSchool" class="press w-full rounded-2xl py-3.5 mb-4 text-[14px] font-semibold btn-primary">+ Ders ekle</button>
+      <div id="adminSchoolList" class="flex flex-col gap-2.5 mb-6"></div>
+
+      <div class="glass rounded-2xl p-4 mb-8">
+        <p class="text-[13px] font-semibold mb-1.5">Ders programını toplu yapıştır</p>
+        <p class="text-[11.5px] text-[var(--text-dimmer)] mb-3 leading-relaxed">Her satır: <b>Gün | 09:00-10:30 | Ders adı</b></p>
+        <textarea id="bulkSchool" rows="6" class="fld mb-3 text-[13px]" placeholder="Pazartesi | 09:00-10:30 | Matematik"></textarea>
+        <button id="bulkSchoolBtn" class="press w-full rounded-2xl py-3 text-[13.5px] font-semibold bg-white/5 border border-white/10">Hepsini ekle</button>
+        <button id="clearSchoolBtn" class="press w-full rounded-2xl py-3 mt-2 text-[13.5px] font-semibold bg-white/5 border border-white/10" style="color:#ff8189;">Tüm ders programını sil</button>
+      </div>
+    </div>
+
+    <!-- DİĞER -->
+    <div id="atab-extra" class="hidden">
+      <div class="glass rounded-2xl p-4 mb-4">
+        <p class="text-[13px] font-semibold mb-2">Bugünün notu</p>
+        <p class="text-[11.5px] text-[var(--text-dimmer)] mb-3">Ekranının en üstünde çıkar. Boş bırakırsan görünmez.</p>
+        <textarea id="noteInput" rows="3" class="fld mb-3 text-[14px]" placeholder="Bugün seni çok özledim..."></textarea>
+        <button id="noteSaveBtn" class="press w-full rounded-2xl py-3 text-[13.5px] font-semibold btn-primary">Notu yayınla</button>
+      </div>
+
+      <div class="glass rounded-2xl p-4 mb-4">
+        <p class="text-[13px] font-semibold mb-2">Gün sayacı</p>
+        <p class="text-[11.5px] text-[var(--text-dimmer)] mb-3">Başlangıç tarihi. Üstteki büyük rakam buna göre her gün artar.</p>
+        <input id="startDateInput" type="date" class="fld mb-3" style="min-height:48px; -webkit-appearance:auto;">
+        <p class="text-[11px] text-[var(--text-dimmer)] mb-3">Açılmıyorsa doğrudan tarih kutusuna dokun; iOS'ta rakamları kaydırarak da girebilirsin (GG/AA/YYYY).</p>
+        <button id="startDateSaveBtn" class="press w-full rounded-2xl py-3 text-[13.5px] font-semibold btn-primary">Kaydet</button>
+      </div>
+
+      <div class="glass rounded-2xl p-4 mb-8">
+        <p class="text-[13px] font-semibold mb-2">Her gün tekrarlayanlar</p>
+        <p class="text-[11.5px] text-[var(--text-dimmer)] mb-3">Haftanın her günü otomatik listeye düşer.</p>
+        <div id="recurringList" class="flex flex-col gap-2 mb-3"></div>
+        <div class="flex gap-2 mb-2">
+          <input id="recTime" type="time" class="fld" style="width:120px;">
+          <input id="recTitle" type="text" class="fld flex-1" placeholder="İlacını unutma">
+        </div>
+        <button id="recAddBtn" class="press w-full rounded-2xl py-3 text-[13.5px] font-semibold btn-primary">Ekle</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMİN GÖREV DÜZENLEME -->
+<div id="editModal" class="fixed inset-0 z-[80] hidden">
+  <div class="modal-backdrop absolute inset-0 bg-black/70" data-close="editModal"></div>
+  <div class="modal-sheet absolute bottom-0 left-0 right-0 glass-strong rounded-t-[32px] p-6 pb-[calc(1.75rem+env(safe-area-inset-bottom))] max-w-md mx-auto max-h-[92dvh] overflow-y-auto">
+    <div class="w-10 h-1.5 rounded-full bg-white/15 mx-auto mb-5"></div>
+    <h3 class="serif text-[19px] font-semibold mb-5" id="editTitle">Ekle</h3>
+
+    <label class="text-[12px] text-[var(--text-dim)] mb-1.5 block">Gün</label>
+    <select id="editDay" class="fld mb-4"></select>
+
+    <label class="text-[12px] text-[var(--text-dim)] mb-1.5 block" id="editTitleLabel">Başlık</label>
+    <input id="editName" type="text" maxlength="70" class="fld mb-4" placeholder="Örn. Arda ile buluş">
+
+    <div class="flex gap-3 mb-4">
+      <div class="flex-1">
+        <label class="text-[12px] text-[var(--text-dim)] mb-1.5 block">Başlangıç</label>
+        <input id="editStart" type="time" class="fld">
+      </div>
+      <div class="flex-1">
+        <label class="text-[12px] text-[var(--text-dim)] mb-1.5 block">Bitiş</label>
+        <input id="editEnd" type="time" class="fld">
+      </div>
+    </div>
+
+    <div id="imageSection">
+      <label class="text-[12px] text-[var(--text-dim)] mb-1.5 block">Fotoğraf <span class="text-[var(--text-dimmer)]">(opsiyonel)</span></label>
+      <input id="editImageInput" type="file" accept="image/*" class="hidden">
+      <div id="imgEmpty" class="press mb-5 rounded-2xl border border-dashed border-white/15 py-5 flex flex-col items-center justify-center gap-1.5 text-[var(--text-dimmer)]">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+        <span class="text-[12.5px]">Fotoğraf eklemek için dokun</span>
+      </div>
+      <div id="imgPrev" class="mb-5 hidden relative">
+        <img id="imgPrevEl" class="w-full h-40 object-cover rounded-2xl border border-white/10" src="" alt="">
+        <button id="imgRemove" type="button" class="press absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 border border-white/15 flex items-center justify-center">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <p id="editError" class="text-[12.5px] mb-3 hidden" style="color:var(--accent-2);"></p>
+
+    <div class="flex gap-3">
+      <button id="editDelete" class="press hidden shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center bg-white/5 border border-white/10">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#ff8189" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-1 0v13a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V7h8Z"/></svg>
+      </button>
+      <button id="editSave" class="press flex-1 rounded-2xl py-4 font-semibold text-[15px] btn-primary">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+/* =================== AYARLAR =================== */
+var APP_NAME = "Takvim";
+var ADMIN_PIN = "1907";          // ← admin şifresi, istediğin gibi değiştir
+var DB_ROOT  = "takvim";
+
+var firebaseConfig = {
+  apiKey: "AIzaSyAcXu1npv1_BVbHTx9u2RAgWfM8xbwFeog",
+  authDomain: "takvim-848d2.firebaseapp.com",
+  databaseURL: "https://takvim-848d2-default-rtdb.firebaseio.com",
+  projectId: "takvim-848d2",
+  storageBucket: "takvim-848d2.firebasestorage.app",
+  messagingSenderId: "408113833741",
+  appId: "1:408113833741:web:b59daabdec115d62ff3244"
+};
+
+/* =================== SABİTLER =================== */
+var DAYS = ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'];
+var JS2TR = {1:'Pazartesi',2:'Salı',3:'Çarşamba',4:'Perşembe',5:'Cuma',6:'Cumartesi',0:'Pazar'};
+var MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+var MONTHS_ABBR = ['OCA','ŞUB','MAR','NİS','MAY','HAZ','TEM','AĞU','EYL','EKİ','KAS','ARA'];
+var GREETINGS = ["Merhaba, bir tanem","Günün nasıl geçiyor","Seni düşünüyorum","Bugün de güzelsin","Bir bakayım dedim","Aklımdaydın"];
+var IDLE = [
+  "Şu an için planlı bir şey yok. Biraz kendine vakit ayır, bana da.",
+  "Boş bir an bu. Derin bir nefes al, birazdan devam ederiz.",
+  "Takvimde bir boşluk var. Belki bir kahve molası tam sırası.",
+  "Şu anlık serbestsin."
+];
+
+/* =================== İKON / MANIFEST =================== */
+var _n = new Date();
+var iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">'
+  + '<rect width="192" height="192" rx="40" fill="#ffffff"/>'
+  + '<path d="M0 40 A40 40 0 0 1 40 0 H152 A40 40 0 0 1 192 40 V56 H0 Z" fill="#e0101f"/>'
+  + '<text x="96" y="41" font-family="Helvetica,Arial,sans-serif" font-size="21" font-weight="700" fill="#ffffff" text-anchor="middle">'+MONTHS_ABBR[_n.getMonth()]+'</text>'
+  + '<text x="96" y="148" font-family="Helvetica,Arial,sans-serif" font-size="100" font-weight="600" fill="#111111" text-anchor="middle">'+_n.getDate()+'</text>'
+  + '</svg>';
+var iconUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(iconSvg)));
+document.getElementById('appleTouchIcon').setAttribute('href', iconUrl);
+document.getElementById('faviconIcon').setAttribute('href', iconUrl);
+var manifest = { name:APP_NAME, short_name:APP_NAME, start_url:".", display:"standalone",
+  background_color:"#08080a", theme_color:"#08080a",
+  icons:[{src:iconUrl,sizes:"192x192",type:"image/svg+xml"},{src:iconUrl,sizes:"512x512",type:"image/svg+xml"}] };
+document.getElementById('manifestLink').setAttribute('href', URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:'application/json'})));
+
+document.getElementById('splashMonth').textContent = MONTHS_ABBR[_n.getMonth()];
+document.getElementById('splashDay').textContent = _n.getDate();
+
+/* =================== FIREBASE =================== */
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
+var rootRef = db.ref(DB_ROOT);
+
+var cloud = { plans:{}, school:{}, note:'', startDate:null, recurring:[], period:{ entries:[], cycleLen:28, periodLen:5 } };
+var done = {};           // { taskId: true } — bugün için
+var localState = { tab:'live', planDay: JS2TR[new Date().getDay()], schoolDay: JS2TR[new Date().getDay()] };
+var loaded = false;
+
+function todayKey(){
+  var d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function normalizeDayMap(obj){
+  var out = {};
+  DAYS.forEach(function(d){
+    var arr = (obj && obj[d]) ? obj[d] : [];
+    if(!Array.isArray(arr)) arr = Object.keys(arr).map(function(k){ return arr[k]; });
+    out[d] = arr.filter(Boolean);
+  });
+  return out;
+}
+
+function flashSync(){
+  var dot = document.getElementById('syncDot');
+  dot.style.opacity = '1';
+  setTimeout(function(){ dot.style.opacity = '0'; }, 900);
+}
+
+rootRef.on('value', function(snap){
+  var v = snap.val() || {};
+  cloud.plans = normalizeDayMap(v.plans);
+  cloud.school = normalizeDayMap(v.school);
+  cloud.note = v.note || '';
+  cloud.startDate = v.startDate || null;
+  var rec = v.recurring || [];
+  if(!Array.isArray(rec)) rec = Object.keys(rec).map(function(k){ return rec[k]; });
+  cloud.recurring = rec.filter(Boolean);
+  var per = v.period || {};
+  var pe = per.entries || [];
+  if(!Array.isArray(pe)) pe = Object.keys(pe).map(function(k){ return pe[k]; });
+  cloud.period = { entries: pe.filter(Boolean), cycleLen: per.cycleLen || 28, periodLen: per.periodLen || 5 };
+  loaded = true;
+  flashSync();
+  renderAll();
+  if(adminOpen) renderAdmin();
+});
+
+db.ref(DB_ROOT+'/done/'+todayKey()).on('value', function(snap){
+  done = snap.val() || {};
+  renderAll();
+});
+
+function saveCloud(patch){ rootRef.update(patch); }
+function setDone(id, val){
+  var ref = db.ref(DB_ROOT+'/done/'+todayKey()+'/'+id);
+  if(val) ref.set(true); else ref.remove();
+}
+
+/* =================== YARDIMCI =================== */
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function toMin(t){ var p=t.split(':'); return (+p[0])*60 + (+p[1]); }
+function addMin(t,m){ var x=toMin(t)+m; if(x>1439)x=1439; return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0'); }
+function esc(s){ return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function bySort(a,b){ return toMin(a.start)-toMin(b.start); }
+
+function todaysItems(){
+  var day = JS2TR[new Date().getDay()];
+  var list = [];
+  (cloud.plans[day]||[]).forEach(function(t){ list.push(Object.assign({},t,{kind:'plan'})); });
+  (cloud.school[day]||[]).forEach(function(t){ list.push(Object.assign({},t,{kind:'school'})); });
+  cloud.recurring.forEach(function(r){
+    list.push({ id:r.id, title:r.title, start:r.time, end:addMin(r.time,120), kind:'rec' });
+  });
+  list.sort(bySort);
+  return list;
+}
+
+/* =================== SES =================== */
+var actx = null;
+function tone(freqs, vol, dur){
+  try{
+    if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==='suspended') actx.resume();
+    var t0 = actx.currentTime;
+    freqs.forEach(function(f,i){
+      var o=actx.createOscillator(), g=actx.createGain();
+      o.type='sine'; o.frequency.value=f;
+      var s=t0+i*0.085;
+      g.gain.setValueAtTime(0,s);
+      g.gain.linearRampToValueAtTime(vol,s+0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001,s+dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(s); o.stop(s+dur+0.05);
+    });
+  }catch(e){}
+}
+function sChime(){ tone([880,1108.7,1318.5],0.15,0.55); }
+function sTick(){ tone([520],0.06,0.12); }
+function sOpen(){ tone([523.25,659.25,783.99],0.09,0.7); }
+
+/* =================== RENDER =================== */
+function renderTop(){
+  var n = new Date();
+  document.getElementById('topDate').textContent = n.getDate()+' '+MONTHS[n.getMonth()]+', '+JS2TR[n.getDay()];
+  document.getElementById('topGreeting').textContent = GREETINGS[n.getHours() % GREETINGS.length];
+}
+
+function renderStreak(){
+  var numEl=document.getElementById('streakNumber'), sufEl=document.getElementById('streakSuffix');
+  if(!cloud.startDate){ numEl.textContent='—'; sufEl.textContent=''; return; }
+  var s=new Date(cloud.startDate+'T00:00:00'), n=new Date();
+  var d=Math.floor((new Date(n.getFullYear(),n.getMonth(),n.getDate()) - new Date(s.getFullYear(),s.getMonth(),s.getDate()))/86400000)+1;
+  if(d<1) d=1;
+  numEl.textContent=d; sufEl.textContent='gün';
+}
+
+function kindBadge(kind){
+  if(kind==='school') return '<span class="text-[10px] px-1.5 py-0.5 rounded-md" style="background:rgba(201,162,75,.16); color:var(--gold);">ders</span>';
+  if(kind==='rec') return '<span class="text-[10px] px-1.5 py-0.5 rounded-md" style="background:rgba(255,255,255,.08); color:var(--text-dim);">her gün</span>';
+  return '';
+}
+
+function rowHTML(t, opts){
+  opts = opts || {};
+  var isDone = !!done[t.id];
+  var check = opts.noCheck ? '' : (isDone
+    ? '<button data-toggle="'+t.id+'" data-val="0" class="press w-9 h-9 rounded-full flex items-center justify-center shrink-0 btn-primary"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>'
+    : '<button data-toggle="'+t.id+'" data-val="1" class="press w-9 h-9 rounded-full shrink-0 border border-white/15"></button>');
+  var thumb = t.image ? '<img src="'+t.image+'" class="w-10 h-10 rounded-xl object-cover shrink-0 border border-white/10" alt="">' : '';
+  var attr = opts.editable ? ' data-edit="'+t.id+'" data-kind="'+(opts.kind||t.kind)+'" data-day="'+opts.day+'"' : '';
+  return '<div class="glass rounded-2xl px-4 py-3.5 flex items-center gap-3"'+attr+'>'
+    + check + thumb
+    + '<div class="flex-1 min-w-0">'
+      + '<div class="flex items-center gap-2"><p class="text-[14.5px] font-medium truncate '+(isDone&&!opts.noCheck?'strike':'')+'">'+esc(t.title)+'</p>'+kindBadge(t.kind)+'</div>'
+      + '<p class="text-[12px] text-[var(--text-dimmer)] mt-0.5">'+t.start+' – '+t.end+'</p>'
+    + '</div></div>';
+}
+
+function renderLive(){
+  var n=new Date();
+  document.getElementById('liveClock').textContent = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+  document.getElementById('liveDayLabel').textContent = JS2TR[n.getDay()];
+
+  // not
+  var nw=document.getElementById('noteWrap');
+  nw.innerHTML = cloud.note
+    ? '<div class="glass rounded-2xl px-4 py-4 fade-up" style="border-color:rgba(224,16,31,.3);"><p class="text-[11px] uppercase mb-1.5" style="letter-spacing:.1em; color:var(--accent-2);">arda\'dan not</p><p class="text-[14.5px] leading-relaxed">'+esc(cloud.note)+'</p></div>'
+    : '';
+
+  var nowMin = n.getHours()*60+n.getMinutes();
+  var items = todaysItems();
+  var cur=null, next=null;
+  items.forEach(function(t){
+    var s=toMin(t.start), e=toMin(t.end);
+    if(nowMin>=s && nowMin<e && !cur) cur=t;
+    if(s>nowMin && (!next || s<toMin(next.start))) next=t;
+  });
+
+  var cw=document.getElementById('currentTaskWrap');
+  if(cur){
+    var isDone=!!done[cur.id];
+    cw.innerHTML = '<div class="glass-strong rounded-[28px] p-6 relative overflow-hidden hero-in">'
+      +'<div class="absolute -top-10 -right-10 w-40 h-40 rounded-full" style="background:radial-gradient(circle, rgba(224,16,31,.28), transparent 70%);"></div>'
+      +(cur.image?'<img src="'+cur.image+'" class="w-full h-40 object-cover rounded-2xl mb-4 relative border border-white/10" alt="">':'')
+      +'<div class="flex items-center gap-2 mb-3 relative"><span class="w-2 h-2 rounded-full pulse-dot" style="background:var(--accent-2);"></span>'
+      +'<span class="text-[12.5px] font-medium" style="color:var(--accent-2);">şu an bunu yapıyor olman lazım, bir tanem</span></div>'
+      +'<h3 class="serif font-semibold leading-snug mb-3 relative '+(isDone?'strike':'')+'" style="font-size:25px;">'+esc(cur.title)+'</h3>'
+      +'<span class="text-[13.5px] text-[var(--text-dim)] relative">'+cur.start+' – '+cur.end+' · '+(toMin(cur.end)-nowMin)+' dk kaldı</span>'
+      +'<div class="flex gap-2.5 mt-5 relative">'
+        +'<button data-toggle="'+cur.id+'" data-val="1" class="press flex-1 rounded-2xl py-3 text-[14px] font-semibold btn-primary">Yapıldı ✅</button>'
+        +'<button data-toggle="'+cur.id+'" data-val="0" class="press flex-1 rounded-2xl py-3 text-[14px] font-semibold bg-white/5 border border-white/10">Yapılmadı ❌</button>'
+      +'</div></div>';
+  } else {
+    cw.innerHTML = '<div class="glass rounded-[28px] p-6 text-center hero-in"><p class="text-[28px] mb-2">☾</p>'
+      +'<p class="text-[14.5px] text-[var(--text-dim)] leading-relaxed">'+IDLE[n.getMinutes()%IDLE.length]+'</p></div>';
+  }
+
+  var nx=document.getElementById('nextTaskWrap');
+  nx.innerHTML = next
+    ? '<div class="glass rounded-2xl px-4 py-3.5 flex items-center justify-between fade-up"><div><p class="text-[11.5px] text-[var(--text-dimmer)] mb-0.5">sırada</p><p class="text-[14px] font-medium">'+esc(next.title)+'</p></div><span class="text-[13px] text-[var(--text-dim)]">'+next.start+'</span></div>'
+    : '';
+
+  var list=document.getElementById('todayList');
+  document.getElementById('todayCount').textContent = items.length ? items.length+' madde' : '';
+  list.innerHTML = items.length
+    ? items.map(function(t){ return rowHTML(t,{}); }).join('')
+    : '<div class="glass rounded-2xl px-4 py-6 text-center"><p class="text-[13.5px] text-[var(--text-dimmer)]">'+(loaded?'Bugün için bir şey yok.':'Yükleniyor…')+'</p></div>';
+}
+
+function chipsHTML(sel, attr){
+  return DAYS.map(function(d){
+    var a = d===sel;
+    return '<button '+attr+'="'+d+'" class="day-chip press shrink-0 rounded-2xl px-4 py-2.5 text-[13.5px] font-medium '+(a?'btn-primary':'glass')+'">'+d+'</button>';
+  }).join('');
+}
+
+function renderPlans(){
+  document.getElementById('planChips').innerHTML = chipsHTML(localState.planDay,'data-planday');
+  var arr=(cloud.plans[localState.planDay]||[]).slice().sort(bySort);
+  document.getElementById('planList').innerHTML = arr.length
+    ? arr.map(function(t){ return rowHTML(Object.assign({},t,{kind:'plan'}),{editable:true,kind:'plan',day:localState.planDay}); }).join('')
+    : '<div class="glass rounded-2xl px-4 py-8 text-center"><p class="text-[13.5px] text-[var(--text-dimmer)]">'+localState.planDay+' için planın yok.</p></div>';
+}
+
+function renderSchool(){
+  document.getElementById('schoolChips').innerHTML = chipsHTML(localState.schoolDay,'data-schoolday');
+  var arr=(cloud.school[localState.schoolDay]||[]).slice().sort(bySort);
+  document.getElementById('schoolList').innerHTML = arr.length
+    ? arr.map(function(t){ return rowHTML(Object.assign({},t,{kind:'school'}),{noCheck:true}); }).join('')
+    : '<div class="glass rounded-2xl px-4 py-8 text-center"><p class="text-[13.5px] text-[var(--text-dimmer)]">'+localState.schoolDay+' için ders yok.</p></div>';
+}
+
+/* =================== REGL TAKVİMİ =================== */
+var periodView = { y: new Date().getFullYear(), m: new Date().getMonth() };
+var WEEKDAY_SHORT = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'];
+
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function sortedPeriodEntries(){ return (cloud.period.entries||[]).slice().sort(); }
+
+function avgCycleLen(){
+  var e = sortedPeriodEntries();
+  if(e.length < 2) return cloud.period.cycleLen || 28;
+  var diffs = [];
+  for(var i=1;i<e.length;i++){
+    diffs.push(Math.round((new Date(e[i]+'T00:00:00') - new Date(e[i-1]+'T00:00:00'))/86400000));
+  }
+  var sum = diffs.reduce(function(a,b){ return a+b; },0);
+  return Math.round(sum/diffs.length);
+}
+function predictedNextPeriod(){
+  var e = sortedPeriodEntries();
+  if(!e.length) return null;
+  var last = new Date(e[e.length-1]+'T00:00:00');
+  var next = new Date(last);
+  next.setDate(next.getDate() + avgCycleLen());
+  return next;
+}
+function inRange(dateObj, startStr, len){
+  var start = new Date(startStr+'T00:00:00');
+  var diff = Math.round((dateObj - start)/86400000);
+  return diff>=0 && diff<len;
+}
+function dayStatus(dateObj){
+  var e = sortedPeriodEntries(), plen = cloud.period.periodLen || 5;
+  for(var i=0;i<e.length;i++){ if(inRange(dateObj, e[i], plen)) return 'logged'; }
+  var pred = predictedNextPeriod();
+  if(pred && inRange(dateObj, ymd(pred), plen)) return 'predicted';
+  return null;
+}
+
+function addPeriodEntry(dateStr){
+  if(!dateStr) return;
+  var e = cloud.period.entries.slice();
+  if(e.indexOf(dateStr)===-1) e.push(dateStr);
+  e.sort();
+  cloud.period.entries = e;
+  saveCloud({ period: cloud.period });
+  sChime();
+}
+function removePeriodEntry(dateStr){
+  cloud.period.entries = cloud.period.entries.filter(function(x){ return x!==dateStr; });
+  saveCloud({ period: cloud.period });
+}
+
+function renderPeriod(){
+  document.getElementById('pmLabel').textContent = MONTHS[periodView.m] + ' ' + periodView.y;
+  document.getElementById('pmWeekHead').innerHTML = WEEKDAY_SHORT.map(function(w){
+    return '<div class="text-center text-[10.5px] text-[var(--text-dimmer)]">'+w+'</div>';
+  }).join('');
+
+  var first = new Date(periodView.y, periodView.m, 1);
+  var lead = (first.getDay()+6)%7;
+  var dim = new Date(periodView.y, periodView.m+1, 0).getDate();
+  var todayStr = ymd(new Date());
+  var cells = [];
+  for(var i=0;i<lead;i++) cells.push('<div></div>');
+  for(var d=1; d<=dim; d++){
+    var dateObj = new Date(periodView.y, periodView.m, d);
+    var status = dayStatus(dateObj);
+    var isToday = ymd(dateObj)===todayStr;
+    var cls = 'w-full aspect-square rounded-xl flex items-center justify-center text-[12.5px]';
+    var style = '';
+    if(status==='logged'){ style='background:linear-gradient(145deg, var(--accent-2), var(--accent-deep)); color:#fff; font-weight:600;'; }
+    else if(status==='predicted'){ style='border:1.5px solid var(--accent-2); color:var(--accent-2);'; }
+    else { style='color:var(--text-dim);'; }
+    if(isToday && status!=='logged') style += 'box-shadow:0 0 0 1.5px var(--gold) inset;';
+    cells.push('<div class="'+cls+'" style="'+style+'">'+d+'</div>');
+  }
+  document.getElementById('pmGrid').innerHTML = cells.join('');
+
+  var e = sortedPeriodEntries();
+  var sum = document.getElementById('pmSummary');
+  if(e.length){
+    var last = new Date(e[e.length-1]+'T00:00:00');
+    var since = Math.floor((new Date(new Date().getFullYear(),new Date().getMonth(),new Date().getDate()) - last)/86400000);
+    var pred = predictedNextPeriod();
+    var cyc = avgCycleLen();
+    sum.innerHTML = '<p class="text-[13.5px] mb-1.5">Son başlangıç: <b>'+since+' gün önce</b></p>'
+      + '<p class="text-[13.5px] mb-1.5">Tahmini sonraki: <b>'+pred.getDate()+' '+MONTHS[pred.getMonth()]+'</b></p>'
+      + '<p class="text-[12px] text-[var(--text-dimmer)]">Ortalama döngü: '+cyc+' gün'+(e.length<2?' (tahmini, daha fazla kayıtla kesinleşir)':'')+'</p>';
+  } else {
+    sum.innerHTML = '<p class="text-[13.5px] text-[var(--text-dim)]">Henüz kayıt yok. Aşağıdan başlangıç tarihi ekleyince tahminler burada görünecek.</p>';
+  }
+
+  document.getElementById('pmCycleLen').value = cloud.period.cycleLen || 28;
+  document.getElementById('pmPeriodLen').value = cloud.period.periodLen || 5;
+
+  document.getElementById('pmList').innerHTML = e.length
+    ? e.slice().reverse().map(function(dstr){
+        var dObj = new Date(dstr+'T00:00:00');
+        return '<div class="glass rounded-xl px-4 py-3 flex items-center justify-between"><span class="text-[13.5px]">'+dObj.getDate()+' '+MONTHS[dObj.getMonth()]+' '+dObj.getFullYear()+'</span><button data-pmdel="'+dstr+'" class="press w-7 h-7 rounded-lg flex items-center justify-center bg-white/5"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ff8189" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>';
+      }).join('')
+    : '<p class="text-[12.5px] text-[var(--text-dimmer)]">Henüz kayıt yok.</p>';
+}
+
+function renderAll(){
+  renderTop(); renderStreak();
+  if(localState.tab==='live') renderLive();
+  else if(localState.tab==='plans') renderPlans();
+  else if(localState.tab==='school') renderSchool();
+  else if(localState.tab==='period') renderPeriod();
+}
+
+/* =================== KONFETİ =================== */
+function confetti(){
+  var colors=['#e0101f','#ff4650','#f4f3f0','#c9a24b'];
+  for(var i=0;i<46;i++){
+    (function(){
+      var el=document.createElement('div'), sz=5+Math.random()*6;
+      el.className='confetti-piece';
+      el.style.left=Math.random()*100+'vw';
+      el.style.width=sz+'px'; el.style.height=(sz*0.4+3)+'px';
+      el.style.background=colors[Math.floor(Math.random()*colors.length)];
+      var dur=1.6+Math.random()*1.1;
+      el.style.animation='confettiFall '+dur+'s cubic-bezier(.37,0,.63,1) forwards';
+      el.style.animationDelay=(Math.random()*0.25)+'s';
+      document.body.appendChild(el);
+      setTimeout(function(){ el.remove(); },(dur+0.4)*1000);
+    })();
+  }
+}
+
+/* =================== ETKİLEŞİM =================== */
+document.body.addEventListener('click', function(e){
+  var tg=e.target.closest('[data-toggle]');
+  if(tg && !e.target.closest('#adminPanel')){
+    var id=tg.getAttribute('data-toggle'), val=tg.getAttribute('data-val')==='1';
+    setDone(id,val);
+    if(val){ confetti(); sChime(); } else { sTick(); }
+    return;
+  }
+  var cl=e.target.closest('[data-close]');
+  if(cl){ document.getElementById(cl.getAttribute('data-close')).classList.add('hidden'); return; }
+  var pd=e.target.closest('[data-planday]');
+  if(pd){ localState.planDay=pd.getAttribute('data-planday'); sTick(); renderPlans(); return; }
+  var sd=e.target.closest('[data-schoolday]');
+  if(sd){ localState.schoolDay=sd.getAttribute('data-schoolday'); sTick(); renderSchool(); return; }
+  var ue=e.target.closest('[data-edit]');
+  if(ue && !e.target.closest('#adminPanel')){
+    openEdit(ue.getAttribute('data-kind'), ue.getAttribute('data-day'), ue.getAttribute('data-edit'));
+    return;
+  }
+  var pmd=e.target.closest('[data-pmdel]');
+  if(pmd){ removePeriodEntry(pmd.getAttribute('data-pmdel')); return; }
+  if(e.target.closest('#pmPrev')){ periodView.m--; if(periodView.m<0){periodView.m=11; periodView.y--;} sTick(); renderPeriod(); return; }
+  if(e.target.closest('#pmNext')){ periodView.m++; if(periodView.m>11){periodView.m=0; periodView.y++;} sTick(); renderPeriod(); return; }
+  if(e.target.closest('#pmToday')){ addPeriodEntry(ymd(new Date())); renderPeriod(); return; }
+  if(e.target.closest('#pmDateAdd')){
+    var v=document.getElementById('pmDateInput').value;
+    if(v){ addPeriodEntry(v); document.getElementById('pmDateInput').value=''; renderPeriod(); }
+    return;
+  }
+});
+
+document.getElementById('pmCycleLen').addEventListener('change', function(){
+  cloud.period.cycleLen = parseInt(this.value,10) || 28;
+  saveCloud({ period: cloud.period });
+});
+document.getElementById('pmPeriodLen').addEventListener('change', function(){
+  cloud.period.periodLen = parseInt(this.value,10) || 5;
+  saveCloud({ period: cloud.period });
+});
+
+function setTab(tab){
+  localState.tab=tab;
+  document.getElementById('screen-live').classList.toggle('hidden', tab!=='live');
+  document.getElementById('screen-plans').classList.toggle('hidden', tab!=='plans');
+  document.getElementById('screen-school').classList.toggle('hidden', tab!=='school');
+  document.getElementById('screen-period').classList.toggle('hidden', tab!=='period');
+  document.getElementById('userAddBtn').classList.toggle('hidden', tab!=='plans' && tab!=='school');
+  document.querySelectorAll('.tab-btn').forEach(function(b){
+    b.style.color = b.getAttribute('data-tab')===tab ? 'var(--accent-2)' : 'var(--text-dim)';
+  });
+  renderAll();
+}
+document.querySelectorAll('.tab-btn').forEach(function(b){
+  b.addEventListener('click', function(){ sTick(); setTab(b.getAttribute('data-tab')); });
+});
+document.getElementById('userAddBtn').addEventListener('click', function(){
+  if(localState.tab==='plans') openEdit('plan', localState.planDay, null);
+  else if(localState.tab==='school') openEdit('school', localState.schoolDay, null);
+});
+
+/* =================== BİLDİRİM =================== */
+var notifOn = localStorage.getItem('tk-notif')==='1';
+var notifModal=document.getElementById('notifModal');
+document.getElementById('bellBtn').addEventListener('click', function(){ updateNotifUI(); notifModal.classList.remove('hidden'); });
+function updateNotifUI(){
+  var d=document.getElementById('notifDesc'), b=document.getElementById('notifEnableBtn');
+  if(!('Notification' in window)){ d.textContent='Bu tarayıcı bildirim desteklemiyor.'; b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  if(Notification.permission==='granted' && notifOn){ d.textContent='Hatırlatmalar açık.'; b.textContent='Kapat'; }
+  else if(Notification.permission==='denied'){ d.textContent='İzin engellenmiş. Safari site ayarlarından açabilirsin.'; b.classList.add('hidden'); }
+  else { d.textContent='Görev saati geldiğinde uygulama açıkken haber verelim mi?'; b.textContent='İzin ver'; }
+}
+document.getElementById('notifEnableBtn').addEventListener('click', function(){
+  if(notifOn){ notifOn=false; localStorage.setItem('tk-notif','0'); updateNotifUI(); updateBell(); return; }
+  Notification.requestPermission().then(function(p){
+    if(p==='granted'){ notifOn=true; localStorage.setItem('tk-notif','1'); new Notification(APP_NAME,{body:'Hatırlatmalar açık 🤍'}); }
+    updateNotifUI(); updateBell();
+  });
+});
+function updateBell(){
+  document.getElementById('bellIcon').style.color =
+    (notifOn && 'Notification' in window && Notification.permission==='granted') ? 'var(--accent-2)' : '';
+}
+function checkNotif(){
+  if(!notifOn || !('Notification' in window) || Notification.permission!=='granted') return;
+  var n=new Date(), s=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+  var fired={}; try{ fired=JSON.parse(sessionStorage.getItem('tk-fired')||'{}'); }catch(e){}
+  todaysItems().forEach(function(t){
+    if(t.start===s){
+      var k=todayKey()+'-'+t.id;
+      if(!fired[k]){
+        new Notification(APP_NAME,{body:'Saat '+t.start+', "'+t.title+'" zamanı geldi bir tanem 🤍'});
+        fired[k]=true; sessionStorage.setItem('tk-fired',JSON.stringify(fired));
+      }
+    }
+  });
+}
+
+/* =================== ADMİN GİRİŞİ (gizli) =================== */
+var tapCount=0, tapTimer=null;
+document.getElementById('headerTapZone').addEventListener('click', function(){
+  tapCount++;
+  clearTimeout(tapTimer);
+  tapTimer=setTimeout(function(){ tapCount=0; }, 1200);
+  if(tapCount>=5){
+    tapCount=0;
+    document.getElementById('pinInput').value='';
+    document.getElementById('pinModal').classList.remove('hidden');
+    setTimeout(function(){ document.getElementById('pinInput').focus(); },200);
+  }
+});
+document.getElementById('pinSubmit').addEventListener('click', tryPin);
+document.getElementById('pinInput').addEventListener('keydown', function(e){ if(e.key==='Enter') tryPin(); });
+function tryPin(){
+  if(document.getElementById('pinInput').value.trim()===ADMIN_PIN){
+    document.getElementById('pinModal').classList.add('hidden');
+    openAdmin();
+  } else {
+    var i=document.getElementById('pinInput');
+    i.value=''; i.placeholder='hatalı';
+  }
+}
+
+/* =================== ADMİN PANELİ =================== */
+var adminOpen=false, adminTab='plans';
+var adminPlanDay=JS2TR[new Date().getDay()], adminSchoolDay=JS2TR[new Date().getDay()];
+
+function openAdmin(){ adminOpen=true; sOpen(); document.getElementById('adminPanel').classList.remove('hidden'); renderAdmin(); }
+document.getElementById('adminClose').addEventListener('click', function(){ adminOpen=false; document.getElementById('adminPanel').classList.add('hidden'); });
+
+document.querySelectorAll('.atab').forEach(function(b){
+  b.addEventListener('click', function(){
+    adminTab=b.getAttribute('data-atab'); sTick();
+    document.querySelectorAll('.atab').forEach(function(x){
+      var on = x.getAttribute('data-atab')===adminTab;
+      x.className = 'atab press flex-1 rounded-2xl py-3 text-[13.5px] font-medium '+(on?'btn-primary':'glass');
+    });
+    document.getElementById('atab-plans').classList.toggle('hidden', adminTab!=='plans');
+    document.getElementById('atab-school').classList.toggle('hidden', adminTab!=='school');
+    document.getElementById('atab-extra').classList.toggle('hidden', adminTab!=='extra');
+    renderAdmin();
+  });
+});
+
+function renderAdmin(){
+  document.getElementById('adminPlanChips').innerHTML = DAYS.map(function(d){
+    return '<button data-aplanday="'+d+'" class="day-chip press shrink-0 rounded-2xl px-3.5 py-2 text-[13px] font-medium '+(d===adminPlanDay?'btn-primary':'glass')+'">'+d.slice(0,3)+'</button>';
+  }).join('');
+  var pa=(cloud.plans[adminPlanDay]||[]).slice().sort(bySort);
+  document.getElementById('adminPlanList').innerHTML = pa.length
+    ? pa.map(function(t){ return rowHTML(Object.assign({},t,{kind:'plan'}),{noCheck:true,editable:true,kind:'plan',day:adminPlanDay}); }).join('')
+    : '<div class="glass rounded-2xl px-4 py-6 text-center"><p class="text-[13px] text-[var(--text-dimmer)]">Boş</p></div>';
+
+  document.getElementById('adminSchoolChips').innerHTML = DAYS.map(function(d){
+    return '<button data-aschoolday="'+d+'" class="day-chip press shrink-0 rounded-2xl px-3.5 py-2 text-[13px] font-medium '+(d===adminSchoolDay?'btn-primary':'glass')+'">'+d.slice(0,3)+'</button>';
+  }).join('');
+  var sa=(cloud.school[adminSchoolDay]||[]).slice().sort(bySort);
+  document.getElementById('adminSchoolList').innerHTML = sa.length
+    ? sa.map(function(t){ return rowHTML(Object.assign({},t,{kind:'school'}),{noCheck:true,editable:true,kind:'school',day:adminSchoolDay}); }).join('')
+    : '<div class="glass rounded-2xl px-4 py-6 text-center"><p class="text-[13px] text-[var(--text-dimmer)]">Boş</p></div>';
+
+  document.getElementById('noteInput').value = cloud.note || '';
+  document.getElementById('startDateInput').value = cloud.startDate || '';
+  document.getElementById('recurringList').innerHTML = cloud.recurring.length
+    ? cloud.recurring.map(function(r){
+        return '<div class="glass rounded-xl px-3 py-2.5 flex items-center gap-2"><span class="text-[12.5px] text-[var(--text-dim)] w-11">'+r.time+'</span><span class="text-[13.5px] flex-1 truncate">'+esc(r.title)+'</span><button data-recdel="'+r.id+'" class="press w-7 h-7 rounded-lg flex items-center justify-center bg-white/5"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ff8189" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>';
+      }).join('')
+    : '<p class="text-[12.5px] text-[var(--text-dimmer)]">Yok</p>';
+}
+
+document.getElementById('adminPanel').addEventListener('click', function(e){
+  var p=e.target.closest('[data-aplanday]');
+  if(p){ adminPlanDay=p.getAttribute('data-aplanday'); sTick(); renderAdmin(); return; }
+  var s=e.target.closest('[data-aschoolday]');
+  if(s){ adminSchoolDay=s.getAttribute('data-aschoolday'); sTick(); renderAdmin(); return; }
+  var rd=e.target.closest('[data-recdel]');
+  if(rd){
+    var id=rd.getAttribute('data-recdel');
+    cloud.recurring = cloud.recurring.filter(function(x){ return x.id!==id; });
+    saveCloud({ recurring: cloud.recurring });
+    return;
+  }
+  var ed=e.target.closest('[data-edit]');
+  if(ed){ openEdit(ed.getAttribute('data-kind'), ed.getAttribute('data-day'), ed.getAttribute('data-edit')); return; }
+});
+
+document.getElementById('adminAddPlan').addEventListener('click', function(){ openEdit('plan', adminPlanDay, null); });
+document.getElementById('adminAddSchool').addEventListener('click', function(){ openEdit('school', adminSchoolDay, null); });
+
+document.getElementById('noteSaveBtn').addEventListener('click', function(){
+  saveCloud({ note: document.getElementById('noteInput').value.trim() });
+  sChime();
+});
+document.getElementById('startDateSaveBtn').addEventListener('click', function(){
+  var v=document.getElementById('startDateInput').value;
+  if(v){ saveCloud({ startDate: v }); sChime(); }
+});
+document.getElementById('startDateInput').addEventListener('click', function(){
+  try{ if(this.showPicker) this.showPicker(); }catch(e){}
+});
+document.getElementById('recAddBtn').addEventListener('click', function(){
+  var t=document.getElementById('recTime').value, n=document.getElementById('recTitle').value.trim();
+  if(!t||!n) return;
+  cloud.recurring.push({ id:'rec-'+uid(), title:n, time:t });
+  saveCloud({ recurring: cloud.recurring });
+  document.getElementById('recTitle').value=''; document.getElementById('recTime').value='';
+  sChime();
+});
+
+/* ---- toplu ekleme ---- */
+function parseBulk(text){
+  var out=[];
+  text.split('\n').forEach(function(line){
+    line=line.trim(); if(!line) return;
+    var parts=line.split('|').map(function(x){ return x.trim(); });
+    if(parts.length<3) return;
+    var day=parts[0], time=parts[1], title=parts.slice(2).join(' | ');
+    var m=time.match(/(\d{1,2})[:.](\d{2})\s*[-–—]\s*(\d{1,2})[:.](\d{2})/);
+    if(!m) return;
+    var match=DAYS.find(function(d){ return d.toLowerCase().indexOf(day.toLowerCase().slice(0,4))===0; });
+    if(!match) return;
+    out.push({ day:match, item:{
+      id:uid(), title:title,
+      start:String(m[1]).padStart(2,'0')+':'+m[2],
+      end:String(m[3]).padStart(2,'0')+':'+m[4]
+    }});
+  });
+  return out;
+}
+function applyBulk(which, textareaId){
+  var rows=parseBulk(document.getElementById(textareaId).value);
+  if(!rows.length){ alert('Hiçbir satır okunamadı. Format: Gün | 09:00-10:30 | Başlık'); return; }
+  var target = which==='plan' ? cloud.plans : cloud.school;
+  rows.forEach(function(r){ if(!target[r.day]) target[r.day]=[]; target[r.day].push(r.item); });
+  var patch={}; patch[which==='plan'?'plans':'school']=target;
+  saveCloud(patch);
+  document.getElementById(textareaId).value='';
+  sChime();
+  alert(rows.length+' satır eklendi.');
+}
+document.getElementById('bulkPlanBtn').addEventListener('click', function(){ applyBulk('plan','bulkPlan'); });
+document.getElementById('bulkSchoolBtn').addEventListener('click', function(){ applyBulk('school','bulkSchool'); });
+document.getElementById('clearSchoolBtn').addEventListener('click', function(){
+  if(!confirm('Tüm ders programı silinsin mi?')) return;
+  var empty={}; DAYS.forEach(function(d){ empty[d]=[]; });
+  cloud.school=empty; saveCloud({ school: empty });
+});
+
+/* =================== EKLE / DÜZENLE =================== */
+var editCtx={ kind:'plan', day:null, id:null, image:null };
+var editModal=document.getElementById('editModal');
+document.getElementById('editDay').innerHTML = DAYS.map(function(d){ return '<option>'+d+'</option>'; }).join('');
+
+function setImg(url){
+  editCtx.image = url || null;
+  document.getElementById('imgEmpty').classList.toggle('hidden', !!url);
+  document.getElementById('imgPrev').classList.toggle('hidden', !url);
+  if(url) document.getElementById('imgPrevEl').src=url;
+  else document.getElementById('editImageInput').value='';
+}
+
+function openEdit(kind, day, id){
+  editCtx.kind=kind; editCtx.day=day; editCtx.id=id;
+  document.getElementById('editError').classList.add('hidden');
+  document.getElementById('imageSection').classList.toggle('hidden', kind==='school');
+  document.getElementById('editTitleLabel').textContent = kind==='school' ? 'Ders adı' : 'Başlık';
+  document.getElementById('editName').placeholder = kind==='school' ? 'Örn. Matematik' : 'Örn. Arda ile buluş';
+  document.getElementById('editDay').value = day;
+  if(id){
+    var arr=(kind==='plan'?cloud.plans:cloud.school)[day]||[];
+    var t=arr.find(function(x){ return x.id===id; }) || {};
+    document.getElementById('editTitle').textContent='Düzenle';
+    document.getElementById('editName').value=t.title||'';
+    document.getElementById('editStart').value=t.start||'';
+    document.getElementById('editEnd').value=t.end||'';
+    document.getElementById('editDelete').classList.remove('hidden');
+    setImg(t.image||null);
+  } else {
+    document.getElementById('editTitle').textContent = kind==='school' ? 'Ders ekle' : 'Plan ekle';
+    document.getElementById('editName').value='';
+    document.getElementById('editStart').value='';
+    document.getElementById('editEnd').value='';
+    document.getElementById('editDelete').classList.add('hidden');
+    setImg(null);
+  }
+  editModal.classList.remove('hidden');
+}
+
+function resizeImg(file, max, q, cb){
+  var r=new FileReader();
+  r.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var w=img.width,h=img.height;
+      if(w>h&&w>max){ h=Math.round(h*max/w); w=max; }
+      else if(h>max){ w=Math.round(w*max/h); h=max; }
+      var c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      cb(c.toDataURL('image/jpeg',q));
+    };
+    img.src=e.target.result;
+  };
+  r.readAsDataURL(file);
+}
+document.getElementById('imgEmpty').addEventListener('click', function(){ document.getElementById('editImageInput').click(); });
+document.getElementById('imgPrevEl').addEventListener('click', function(){ document.getElementById('editImageInput').click(); });
+document.getElementById('imgRemove').addEventListener('click', function(e){ e.stopPropagation(); setImg(null); });
+document.getElementById('editImageInput').addEventListener('change', function(e){
+  var f=e.target.files&&e.target.files[0]; if(!f) return;
+  resizeImg(f,700,0.65,function(u){ setImg(u); });
+});
+
+document.getElementById('editSave').addEventListener('click', function(){
+  var day=document.getElementById('editDay').value;
+  var title=document.getElementById('editName').value.trim();
+  var st=document.getElementById('editStart').value;
+  var en=document.getElementById('editEnd').value;
+  var err=document.getElementById('editError');
+  if(!title||!st||!en){ err.textContent='Başlık ve saatleri doldur.'; err.classList.remove('hidden'); return; }
+  if(toMin(en)<=toMin(st)){ err.textContent='Bitiş, başlangıçtan sonra olmalı.'; err.classList.remove('hidden'); return; }
+  err.classList.add('hidden');
+
+  var store = editCtx.kind==='plan' ? cloud.plans : cloud.school;
+  DAYS.forEach(function(d){ if(!store[d]) store[d]=[]; });
+
+  if(editCtx.id){
+    store[editCtx.day] = store[editCtx.day].filter(function(x){ return x.id!==editCtx.id; });
+    store[day].push({ id:editCtx.id, title:title, start:st, end:en, image: editCtx.kind==='plan' ? (editCtx.image||null) : null });
+  } else {
+    store[day].push({ id:uid(), title:title, start:st, end:en, image: editCtx.kind==='plan' ? (editCtx.image||null) : null });
+  }
+  var patch={}; patch[editCtx.kind==='plan'?'plans':'school']=store;
+  saveCloud(patch);
+  editModal.classList.add('hidden');
+  sChime();
+});
+
+document.getElementById('editDelete').addEventListener('click', function(){
+  if(!editCtx.id) return;
+  var store = editCtx.kind==='plan' ? cloud.plans : cloud.school;
+  store[editCtx.day] = (store[editCtx.day]||[]).filter(function(x){ return x.id!==editCtx.id; });
+  var patch={}; patch[editCtx.kind==='plan'?'plans':'school']=store;
+  saveCloud(patch);
+  editModal.classList.add('hidden');
+});
+
+/* =================== BAŞLAT =================== */
+setInterval(function(){ renderTop(); renderStreak(); if(localState.tab==='live') renderLive(); checkNotif(); }, 15000);
+renderTop(); renderStreak(); updateBell(); setTab('live');
+
+window.addEventListener('load', function(){
+  setTimeout(function(){
+    document.getElementById('splash').classList.add('gone');
+    setTimeout(function(){ document.getElementById('splash').style.display='none'; }, 700);
+  }, 900);
+});
+
+})();
+</script>
+</body>
+</html>
